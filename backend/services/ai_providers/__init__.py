@@ -251,6 +251,7 @@ def get_image_provider(model: str = "gemini-3-pro-image-preview") -> ImageProvid
     elif provider_format == 'lazyllm':
         source = config.get('image_source', 'doubao')
         logger.info(f"Using Lazyllm for image generation, model: {model}, source: {source}")
+        print(model)
         return LazyLLMImageProvider(
             source=source,
             model=model
