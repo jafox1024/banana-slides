@@ -174,8 +174,10 @@ def update_settings():
         # Update image generation configuration
         if "image_resolution" in data:
             resolution = data["image_resolution"]
-            if resolution not in ["1K", "2K", "4K"]:
-                return bad_request("Resolution must be 1K, 2K, or 4K")
+            # 允许标准分辨率和qwen模型支持的具体分辨率
+            allowed_resolutions = ["1K", "2K", "4K", "1280*1280", "1696*960", "960*1696", "1472*1104", "1104*1472"]
+            if resolution not in allowed_resolutions:
+                return bad_request(f"Resolution must be one of: {', '.join(allowed_resolutions)}")
             settings.image_resolution = resolution
 
         if "image_aspect_ratio" in data:
