@@ -22,7 +22,7 @@ const settingsI18n = {
       fields: {
         aiProviderFormat: "AI 提供商格式",
         aiProviderFormatDesc: "选择 API 请求格式，影响后端如何构造和发送请求。保存设置后生效。",
-        openaiFormat: "OpenAI 格式", geminiFormat: "Gemini 格式",
+        openaiFormat: "OpenAI 格式", geminiFormat: "Gemini 格式",lazyllm: "lazyllm设置",
         apiBaseUrl: "API Base URL", apiBaseUrlPlaceholder: "https://api.example.com",
         apiBaseUrlDesc: "设置大模型提供商 API 的基础 URL",
         apiKey: "API Key", apiKeyPlaceholder: "输入新的 API Key",
@@ -229,6 +229,7 @@ export const Settings: React.FC = () => {
           options: [
             { value: 'openai', label: t('settings.fields.openaiFormat') },
             { value: 'gemini', label: t('settings.fields.geminiFormat') },
+            { value: 'lazyllm', label: t('settings.fields.lazyllm') },
           ],
         },
         {
