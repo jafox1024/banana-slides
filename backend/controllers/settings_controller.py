@@ -158,7 +158,7 @@ def update_settings():
             if provider_format not in ["openai", "gemini","lazyllm"]:
                 return bad_request("AI provider format must be 'openai' or 'gemini'")
             settings.ai_provider_format = provider_format
-
+~
         # Update API configuration
         if "api_base_url" in data:
             raw_base_url = data["api_base_url"]
