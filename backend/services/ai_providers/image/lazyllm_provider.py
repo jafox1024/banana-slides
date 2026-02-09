@@ -46,7 +46,33 @@ class LazyLLMImageProvider(ImageProvider):
                        thinking_budget: int = 0
                        ) -> Optional[Image.Image]:
         # 根据不同模型设置不同的分辨率映射
-        if 'qwen' in self.client.model.lower():
+        is_qwen_model = False
+        is_doubao_model = False
+        try:
+            # 尝试访问model属性
+            if hasattr(self.client, 'model') and self.client.model:
+                if 'qwen' in self.client.model.lower():
+                    is_qwen_model = True
+                elif 'doubao' in self.client.model.lower():
+                    is_doubao_model = True
+            # 对于没有model属性的客户端，检查类名
+            if not is_qwen_model and not is_doubao_model:
+                if 'qwen' in self.client.__class__.__name__.lower():
+                    is_qwen_model = True
+                elif 'doubao' in self.client.__class__.__name__.lower():
+                    is_doubao_model = True
+            # 检查source属性
+            if not is_qwen_model and not is_doubao_model:
+                if hasattr(self.client, 'source') and self.client.source:
+                    if 'qwen' in self.client.source.lower():
+                        is_qwen_model = True
+                    elif 'doubao' in self.client.source.lower():
+                        is_doubao_model = True
+        except Exception:
+            # 如果出现任何错误，默认不是qwen或doubao模型
+            pass
+        
+        if is_qwen_model:
             # qwen支持的规格：1280*1280,1696*960,960*1696,1472*1104,1104*1472
             resolution_map = {
                 "1K": "1696*960",  # 16:9 比例
@@ -59,13 +85,15 @@ class LazyLLMImageProvider(ImageProvider):
                 "1472*1104": "1472*1104",
                 "1104*1472": "1104*1472"
             }
-        elif 'doubao' in self.client.model.lower():
+        elif is_doubao_model:
+            # 豆包支持的规格
             resolution_map = {
+                "1K": "1k",
                 "2K": "2k",
                 "4K": "4k"
             }
         else:
-            # 豆包等其他模型支持的规格
+            # 其他模型支持的规格
             resolution_map = {
                 "1K": "1920*1080",
                 "2K": "2048*1080",
