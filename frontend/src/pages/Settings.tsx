@@ -312,6 +312,12 @@ export const Settings: React.FC = () => {
             { value: '1K', label: '1K (1024px)' },
             { value: '2K', label: '2K (2048px)' },
             { value: '4K', label: '4K (4096px)' },
+            // qwen 模型支持的具体规格
+            { value: '1280*1280', label: '1280*1280 (qwen)' },
+            { value: '1696*960', label: '1696*960 (qwen 16:9)' },
+            { value: '960*1696', label: '960*1696 (qwen 9:16)' },
+            { value: '1472*1104', label: '1472*1104 (qwen 4:3)' },
+            { value: '1104*1472', label: '1104*1472 (qwen 3:4)' },
           ],
         },
       ],

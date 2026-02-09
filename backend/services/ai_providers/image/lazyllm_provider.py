@@ -45,11 +45,34 @@ class LazyLLMImageProvider(ImageProvider):
                        enable_thinking: bool = False,
                        thinking_budget: int = 0
                        ) -> Optional[Image.Image]:
-        resolution_map = {
-            "1K": "1920*1080",
-            "2K": "2048*1080",
-            "4K": "3840*2160"
-        }
+        # 根据不同模型设置不同的分辨率映射
+        if 'qwen' in self.client.model.lower():
+            # qwen支持的规格：1280*1280,1696*960,960*1696,1472*1104,1104*1472
+            resolution_map = {
+                "1K": "1696*960",  # 16:9 比例
+                "2K": "1696*960",  # qwen没有真正的2K，使用其支持的最高16:9比例
+                "4K": "1696*960",  # qwen没有真正的4K，使用其支持的最高16:9比例
+                # 直接支持qwen的具体规格
+                "1280*1280": "1280*1280",
+                "1696*960": "1696*960",
+                "960*1696": "960*1696",
+                "1472*1104": "1472*1104",
+                "1104*1472": "1104*1472"
+            }
+        elif 'doubao' in self.client.model.lower():
+            resolution_map = {
+                "2K": "2k",
+                "4K": "4k"
+            }
+        else:
+            # 豆包等其他模型支持的规格
+            resolution_map = {
+                "1K": "1920*1080",
+                "2K": "2048*1080",
+                "4K": "3840*2160"
+            }
+
+        
         if resolution in resolution_map:
             resolution = resolution_map[resolution]
         # Convert a PIL Image object to a file path: When passing a reference image to lazyllm, you need to input a path in string format.
