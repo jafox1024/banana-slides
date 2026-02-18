@@ -12,6 +12,7 @@ const settingsI18n = {
       subtitle: "配置应用的各项参数",
       sections: {
         appearance: "外观设置", language: "界面语言", apiConfig: "默认 API 配置",
+        apiConfigDesc: "下方模型未单独指定提供商时，将使用此处的配置",
         modelConfig: "模型配置", mineruConfig: "MinerU 配置", imageConfig: "图像生成配置",
         performanceConfig: "性能配置", outputLanguage: "输出语言设置",
         textReasoning: "文本推理模式", imageReasoning: "图像推理模式",
@@ -50,14 +51,14 @@ const settingsI18n = {
         imageThinkingBudget: "图像思考负载", imageThinkingBudgetDesc: "图像推理的思考 token 预算 (1-8192)，数值越大推理越深入",
         baiduOcrApiKey: "百度 OCR API Key", baiduOcrApiKeyPlaceholder: "输入百度 OCR API Key",
         baiduOcrApiKeyDesc: "用于可编辑 PPTX 导出时的文字识别功能，留空则保持当前设置不变",
-        textModelSource: "文本模型厂商", textModelSourceDesc: "选择文本生成使用的模型提供商", textModelSourcePlaceholder: "-- 请选择厂商 --",
-        imageModelSource: "图片模型厂商", imageModelSourceDesc: "选择图片生成使用的模型提供商", imageModelSourcePlaceholder: "-- 请选择厂商 --",
-        imageCaptionModelSource: "图片识别模型厂商", imageCaptionModelSourceDesc: "选择图片识别使用的模型提供商", imageCaptionModelSourcePlaceholder: "-- 请选择厂商 --",
+        textModelSource: "文本模型提供商格式", textModelSourceDesc: "选择文本生成使用的提供商格式", textModelSourcePlaceholder: "-- 请选择 --",
+        imageModelSource: "图片模型提供商格式", imageModelSourceDesc: "选择图片生成使用的提供商格式", imageModelSourcePlaceholder: "-- 请选择 --",
+        imageCaptionModelSource: "图片识别模型提供商格式", imageCaptionModelSourceDesc: "选择图片识别使用的提供商格式", imageCaptionModelSourcePlaceholder: "-- 请选择 --",
         vendorApiKey: "{{vendor}} API Key", vendorApiKeyPlaceholder: "输入 {{vendor}} API Key",
         vendorApiKeyDesc: "留空则保持当前设置不变，输入新值则更新",
         vendorApiKeySet: "已设置（长度: {{length}}）",
         selectPlaceholder: "-- 请选择 --",
-        modelProvider: "提供商", modelProviderDesc: "为此模型选择独立的提供商，不选则使用默认配置",
+        modelProvider: "提供商", modelProviderDesc: "为此模型选择独立的提供商，不选则使用上方默认配置",
         modelProviderPlaceholder: "-- 使用默认配置 --",
         perModelApiBaseUrl: "API Base URL", perModelApiBaseUrlPlaceholder: "留空使用默认 Base URL",
         perModelApiKey: "API Key", perModelApiKeyPlaceholder: "输入 API Key",
@@ -99,6 +100,7 @@ const settingsI18n = {
       subtitle: "Configure application parameters",
       sections: {
         appearance: "Appearance", language: "Interface Language", apiConfig: "Default API Configuration",
+        apiConfigDesc: "Used as fallback when a model below has no provider specified",
         modelConfig: "Model Configuration", mineruConfig: "MinerU Configuration", imageConfig: "Image Generation Configuration",
         performanceConfig: "Performance Configuration", outputLanguage: "Output Language Settings",
         textReasoning: "Text Reasoning Mode", imageReasoning: "Image Reasoning Mode",
@@ -137,14 +139,14 @@ const settingsI18n = {
         imageThinkingBudget: "Image Thinking Budget", imageThinkingBudgetDesc: "Token budget for image reasoning (1-8192), higher values enable deeper reasoning",
         baiduOcrApiKey: "Baidu OCR API Key", baiduOcrApiKeyPlaceholder: "Enter Baidu OCR API Key",
         baiduOcrApiKeyDesc: "For text recognition in editable PPTX export, leave empty to keep current setting",
-        textModelSource: "Text Model Provider", textModelSourceDesc: "Select the provider for text generation", textModelSourcePlaceholder: "-- Select provider --",
-        imageModelSource: "Image Model Provider", imageModelSourceDesc: "Select the provider for image generation", imageModelSourcePlaceholder: "-- Select provider --",
-        imageCaptionModelSource: "Image Caption Model Provider", imageCaptionModelSourceDesc: "Select the provider for image captioning", imageCaptionModelSourcePlaceholder: "-- Select provider --",
+        textModelSource: "Text Model Provider Format", textModelSourceDesc: "Select the provider format for text generation", textModelSourcePlaceholder: "-- Select --",
+        imageModelSource: "Image Model Provider Format", imageModelSourceDesc: "Select the provider format for image generation", imageModelSourcePlaceholder: "-- Select --",
+        imageCaptionModelSource: "Image Caption Model Provider Format", imageCaptionModelSourceDesc: "Select the provider format for image captioning", imageCaptionModelSourcePlaceholder: "-- Select --",
         vendorApiKey: "{{vendor}} API Key", vendorApiKeyPlaceholder: "Enter {{vendor}} API Key",
         vendorApiKeyDesc: "Leave empty to keep current setting, enter new value to update",
         vendorApiKeySet: "Set (length: {{length}})",
         selectPlaceholder: "-- Select --",
-        modelProvider: "Provider", modelProviderDesc: "Select an independent provider for this model, leave empty to use default",
+        modelProvider: "Provider", modelProviderDesc: "Select an independent provider for this model, leave empty to use default config",
         modelProviderPlaceholder: "-- Use default config --",
         perModelApiBaseUrl: "API Base URL", perModelApiBaseUrlPlaceholder: "Leave empty to use default Base URL",
         perModelApiKey: "API Key", perModelApiKeyPlaceholder: "Enter API Key",
@@ -244,7 +246,7 @@ const LAZYLLM_VENDOR_SET = new Set(LAZYLLM_SOURCES.map(s => s.value));
 
 // 初始表单数据
 const initialFormData = {
-  ai_provider_format: 'gemini' as 'openai' | 'gemini' | 'lazyllm',
+  ai_provider_format: 'gemini' as string,
   api_base_url: '',
   api_key: '',
   text_model: '',
@@ -276,6 +278,78 @@ const initialFormData = {
   image_caption_api_base_url: '',
 };
 
+const isLazyllmVendor = (vendor: string) =>
+  LAZYLLM_VENDOR_SET.has(vendor) && vendor !== 'openai';
+
+// When backend returns "lazyllm", infer specific vendor from configured keys
+const resolveLazyllmVendor = (format: string, keysInfo?: Record<string, number>): string => {
+  if (format !== 'lazyllm') return format;
+  if (keysInfo) {
+    const vendor = LAZYLLM_SOURCES.find(s => isLazyllmVendor(s.value) && keysInfo[s.value]);
+    if (vendor) return vendor.value;
+  }
+  return LAZYLLM_SOURCES.find(s => isLazyllmVendor(s.value))?.value || 'deepseek';
+};
+
+const GlobalVendorKeyInput: React.FC<{
+  vendor: string; formData: typeof initialFormData;
+  setFormData: React.Dispatch<React.SetStateAction<typeof initialFormData>>;
+  settings: SettingsType | null; t: ReturnType<typeof useT>;
+}> = ({ vendor, formData, setFormData, settings, t }) => {
+  const vendorLabel = LAZYLLM_SOURCES.find(s => s.value === vendor)?.label || vendor.toUpperCase();
+  const keyLength = settings?.lazyllm_api_keys_info?.[vendor] || 0;
+  const placeholder = keyLength > 0
+    ? t('settings.fields.vendorApiKeySet', { length: keyLength })
+    : t('settings.fields.vendorApiKeyPlaceholder', { vendor: vendorLabel });
+  return (
+    <div className="pl-3 border-l-2 border-amber-300 dark:border-amber-600">
+      <Input
+        label={t('settings.fields.vendorApiKey', { vendor: vendorLabel })}
+        type="password"
+        placeholder={placeholder}
+        value={formData.lazyllm_api_keys[vendor] || ''}
+        onChange={(e) => {
+          setFormData(prev => ({
+            ...prev,
+            lazyllm_api_keys: { ...prev.lazyllm_api_keys, [vendor]: e.target.value }
+          }));
+        }}
+      />
+      <p className="mt-1 text-sm text-gray-500 dark:text-foreground-tertiary">{t('settings.fields.vendorApiKeyDesc')}</p>
+    </div>
+  );
+};
+
+const formDataFromSettings = (data: SettingsType): typeof initialFormData => ({
+  ai_provider_format: resolveLazyllmVendor(data.ai_provider_format || 'gemini', data.lazyllm_api_keys_info),
+  api_base_url: data.api_base_url || '',
+  api_key: '',
+  image_resolution: data.image_resolution || '2K',
+  max_description_workers: data.max_description_workers || 5,
+  max_image_workers: data.max_image_workers || 8,
+  text_model: data.text_model || '',
+  image_model: data.image_model || '',
+  mineru_api_base: data.mineru_api_base || '',
+  mineru_token: '',
+  image_caption_model: data.image_caption_model || '',
+  output_language: data.output_language || 'zh',
+  enable_text_reasoning: data.enable_text_reasoning || false,
+  text_thinking_budget: data.text_thinking_budget || 1024,
+  enable_image_reasoning: data.enable_image_reasoning || false,
+  image_thinking_budget: data.image_thinking_budget || 1024,
+  baidu_ocr_api_key: '',
+  text_model_source: data.text_model_source || '',
+  image_model_source: data.image_model_source || '',
+  image_caption_model_source: data.image_caption_model_source || '',
+  lazyllm_api_keys: {},
+  text_api_key: '',
+  text_api_base_url: data.text_api_base_url || '',
+  image_api_key: '',
+  image_api_base_url: data.image_api_base_url || '',
+  image_caption_api_key: '',
+  image_caption_api_base_url: data.image_caption_api_base_url || '',
+});
+
 // Settings 组件 - 纯嵌入模式（可复用）
 export const Settings: React.FC = () => {
   const t = useT(settingsI18n);
@@ -290,40 +364,7 @@ export const Settings: React.FC = () => {
 
   // 配置驱动的表单区块定义（使用翻译）
   const settingsSections: SectionConfig[] = [
-    {
-      title: t('settings.sections.apiConfig'),
-      icon: <Key size={20} />,
-      fields: [
-        {
-          key: 'ai_provider_format',
-          label: t('settings.fields.aiProviderFormat'),
-          type: 'buttons',
-          description: t('settings.fields.aiProviderFormatDesc'),
-          options: [
-            { value: 'openai', label: t('settings.fields.openaiFormat') },
-            { value: 'gemini', label: t('settings.fields.geminiFormat') },
-            { value: 'lazyllm', label: t('settings.fields.lazyllmFormat') },
-          ],
-        },
-        {
-          key: 'api_base_url' as keyof typeof initialFormData,
-          label: t('settings.fields.apiBaseUrl'),
-          type: 'text' as FieldType,
-          placeholder: t('settings.fields.apiBaseUrlPlaceholder'),
-          description: t('settings.fields.apiBaseUrlDesc'),
-        },
-        {
-          key: 'api_key' as keyof typeof initialFormData,
-          label: t('settings.fields.apiKey'),
-          type: 'password' as FieldType,
-          placeholder: t('settings.fields.apiKeyPlaceholder'),
-          sensitiveField: true,
-          lengthKey: 'api_key_length' as keyof SettingsType,
-          description: t('settings.fields.apiKeyDesc'),
-        },
-      ],
-    },
-    // Model config section is rendered separately (renderModelConfigSection) to support per-model provider UI
+    // Global API config & Model config are rendered separately above
     {
       title: t('settings.sections.mineruConfig'),
       icon: <FileText size={20} />,
@@ -465,36 +506,7 @@ export const Settings: React.FC = () => {
       const response = await api.getSettings();
       if (response.data) {
         setSettings(response.data);
-        setFormData({
-          ai_provider_format: response.data.ai_provider_format || 'gemini',
-          api_base_url: response.data.api_base_url || '',
-          api_key: '',
-          image_resolution: response.data.image_resolution || '2K',
-          max_description_workers: response.data.max_description_workers || 5,
-          max_image_workers: response.data.max_image_workers || 8,
-          text_model: response.data.text_model || '',
-          image_model: response.data.image_model || '',
-          mineru_api_base: response.data.mineru_api_base || '',
-          mineru_token: '',
-          image_caption_model: response.data.image_caption_model || '',
-          output_language: response.data.output_language || 'zh',
-          enable_text_reasoning: response.data.enable_text_reasoning || false,
-          text_thinking_budget: response.data.text_thinking_budget || 1024,
-          enable_image_reasoning: response.data.enable_image_reasoning || false,
-          image_thinking_budget: response.data.image_thinking_budget || 1024,
-          baidu_ocr_api_key: '',
-          text_model_source: response.data.text_model_source || '',
-          image_model_source: response.data.image_model_source || '',
-          image_caption_model_source: response.data.image_caption_model_source || '',
-          lazyllm_api_keys: {},
-          // Per-model API credentials (sensitive fields start empty)
-          text_api_key: '',
-          text_api_base_url: response.data.text_api_base_url || '',
-          image_api_key: '',
-          image_api_base_url: response.data.image_api_base_url || '',
-          image_caption_api_key: '',
-          image_caption_api_base_url: response.data.image_caption_api_base_url || '',
-        });
+        setFormData(formDataFromSettings(response.data));
       }
     } catch (error: any) {
       console.error('加载设置失败:', error);
@@ -517,6 +529,9 @@ export const Settings: React.FC = () => {
       } = formData;
       const payload: Parameters<typeof api.updateSettings>[0] = {
         ...otherData,
+        // Map vendor name to backend format
+        ai_provider_format: (isLazyllmVendor(otherData.ai_provider_format)
+          ? 'lazyllm' : otherData.ai_provider_format) as 'openai' | 'gemini' | 'lazyllm',
       };
 
       // Only send sensitive fields if user entered a new value
@@ -568,35 +583,7 @@ export const Settings: React.FC = () => {
           const response = await api.resetSettings();
           if (response.data) {
             setSettings(response.data);
-            setFormData({
-              ai_provider_format: response.data.ai_provider_format || 'gemini',
-              api_base_url: response.data.api_base_url || '',
-              api_key: '',
-              image_resolution: response.data.image_resolution || '2K',
-              max_description_workers: response.data.max_description_workers || 5,
-              max_image_workers: response.data.max_image_workers || 8,
-              text_model: response.data.text_model || '',
-              image_model: response.data.image_model || '',
-              mineru_api_base: response.data.mineru_api_base || '',
-              mineru_token: '',
-              image_caption_model: response.data.image_caption_model || '',
-              output_language: response.data.output_language || 'zh',
-              enable_text_reasoning: response.data.enable_text_reasoning || false,
-              text_thinking_budget: response.data.text_thinking_budget || 1024,
-              enable_image_reasoning: response.data.enable_image_reasoning || false,
-              image_thinking_budget: response.data.image_thinking_budget || 1024,
-              baidu_ocr_api_key: '',
-              text_model_source: response.data.text_model_source || '',
-              image_model_source: response.data.image_model_source || '',
-              image_caption_model_source: response.data.image_caption_model_source || '',
-              lazyllm_api_keys: {},
-              text_api_key: '',
-              text_api_base_url: response.data.text_api_base_url || '',
-              image_api_key: '',
-              image_api_base_url: response.data.image_api_base_url || '',
-              image_caption_api_key: '',
-              image_caption_api_base_url: response.data.image_caption_api_base_url || '',
-            });
+            setFormData(formDataFromSettings(response.data));
             show({ message: t('settings.messages.resetSuccess'), type: 'success' });
           }
         } catch (error: any) {
@@ -895,7 +882,7 @@ export const Settings: React.FC = () => {
   const renderModelConfigGroup = (item: typeof modelConfigItems[0]) => {
     const sourceValue = formData[item.sourceKey] as string;
     const isApiKeyProvider = API_KEY_PROVIDERS.has(sourceValue);
-    const isLazyllmVendor = sourceValue && LAZYLLM_VENDOR_SET.has(sourceValue) && sourceValue !== 'openai';
+    const isLazyllm = sourceValue && isLazyllmVendor(sourceValue);
     // 'openai' in source dropdown means OpenAI format (API key provider), not lazyllm openai vendor
     // lazyllm openai vendor is handled separately
 
@@ -965,7 +952,7 @@ export const Settings: React.FC = () => {
         )}
 
         {/* LazyLLM 厂商：显示厂商 API Key */}
-        {isLazyllmVendor && (() => {
+        {isLazyllm && (() => {
           const vendorLabel = LAZYLLM_SOURCES.find(s => s.value === sourceValue)?.label || sourceValue.toUpperCase();
           const keyLength = settings?.lazyllm_api_keys_info?.[sourceValue] || 0;
           const placeholder = keyLength > 0
@@ -1008,48 +995,98 @@ export const Settings: React.FC = () => {
       <ToastContainer />
       {ConfirmDialog}
       <div className="space-y-8">
-        {/* 配置区块（配置驱动） */}
-        <div className="space-y-8">
-          {settingsSections.map((section, sectionIdx) => (
-            <React.Fragment key={section.title}>
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-foreground-primary mb-4 flex items-center">
-                  {section.icon}
-                  <span className="ml-2">{section.title}</span>
-                </h2>
-                <div className="space-y-4">
-                  {section.fields.map((field) => renderField(field))}
-                  {section.title === t('settings.sections.apiConfig') && (
-                    <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg">
-                      <p className="text-sm text-gray-700 dark:text-foreground-secondary">
-                        {t('settings.apiKeyTip', { link: '' }).split('{{link}}')[0]}
-                        <a
-                          href="https://aihubmix.com/?aff=17EC"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-800 underline font-medium"
-                        >
-                          AIHubmix
-                        </a>
-                        {t('settings.apiKeyTip', { link: '' }).split('{{link}}')[1]}
-                      </p>
-                    </div>
-                  )}
+        {/* 默认 API 配置区块 */}
+        <div data-testid="global-api-config-section">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-foreground-primary mb-1 flex items-center">
+            <Key size={20} />
+            <span className="ml-2">{t('settings.sections.apiConfig')}</span>
+          </h2>
+          <p className="text-sm text-gray-500 dark:text-foreground-tertiary mb-4">{t('settings.sections.apiConfigDesc')}</p>
+          <div className="p-4 bg-gray-50 dark:bg-background-primary border border-gray-200 dark:border-border-primary rounded-lg space-y-3">
+            {/* 提供商下拉 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-foreground-secondary mb-2">
+                {t('settings.fields.aiProviderFormat')}
+              </label>
+              <select
+                value={formData.ai_provider_format}
+                onChange={(e) => handleFieldChange('ai_provider_format', e.target.value)}
+                className="w-full h-10 px-4 rounded-lg border border-gray-200 dark:border-border-primary bg-white dark:bg-background-secondary focus:outline-none focus:ring-2 focus:ring-banana-500 focus:border-transparent"
+              >
+                {ALL_PROVIDER_SOURCES.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+              <p className="mt-1 text-sm text-gray-500 dark:text-foreground-tertiary">{t('settings.fields.aiProviderFormatDesc')}</p>
+            </div>
+
+            {/* Gemini/OpenAI: API Base URL + API Key */}
+            {API_KEY_PROVIDERS.has(formData.ai_provider_format) && (
+              <div className="space-y-3 pl-3 border-l-2 border-banana-300 dark:border-banana-600">
+                <Input
+                  label={t('settings.fields.apiBaseUrl')}
+                  type="text"
+                  placeholder={t('settings.fields.apiBaseUrlPlaceholder')}
+                  value={formData.api_base_url}
+                  onChange={(e) => handleFieldChange('api_base_url', e.target.value)}
+                />
+                <p className="-mt-2 text-sm text-gray-500 dark:text-foreground-tertiary">{t('settings.fields.apiBaseUrlDesc')}</p>
+                <div>
+                  <Input
+                    label={t('settings.fields.apiKey')}
+                    type="password"
+                    placeholder={
+                      settings && (settings.api_key_length as number) > 0
+                        ? t('settings.fields.apiKeySet', { length: settings.api_key_length })
+                        : t('settings.fields.apiKeyPlaceholder')
+                    }
+                    value={formData.api_key}
+                    onChange={(e) => handleFieldChange('api_key', e.target.value)}
+                  />
+                  <p className="mt-1 text-sm text-gray-500 dark:text-foreground-tertiary">{t('settings.fields.apiKeyDesc')}</p>
                 </div>
               </div>
-              {/* 模型配置区块 - 紧跟在 API 配置区块后面 */}
-              {sectionIdx === 0 && (
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900 dark:text-foreground-primary mb-4 flex items-center">
-                    <FileText size={20} />
-                    <span className="ml-2">{t('settings.sections.modelConfig')}</span>
-                  </h2>
-                  <div className="space-y-4">
-                    {modelConfigItems.map(renderModelConfigGroup)}
-                  </div>
-                </div>
-              )}
-            </React.Fragment>
+            )}
+
+            {/* LazyLLM 厂商: 厂商 API Key */}
+            {isLazyllmVendor(formData.ai_provider_format) && (
+              <GlobalVendorKeyInput vendor={formData.ai_provider_format} formData={formData} setFormData={setFormData} settings={settings} t={t} />
+            )}
+          </div>
+
+          {/* AIHubmix 提示 */}
+          <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg">
+            <p className="text-sm text-gray-700 dark:text-foreground-secondary">
+              {t('settings.apiKeyTip', { link: '' }).split('{{link}}')[0]}
+              <a href="https://aihubmix.com/?aff=17EC" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline font-medium">AIHubmix</a>
+              {t('settings.apiKeyTip', { link: '' }).split('{{link}}')[1]}
+            </p>
+          </div>
+        </div>
+
+        {/* 模型配置区块 */}
+        <div>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-foreground-primary mb-4 flex items-center">
+            <FileText size={20} />
+            <span className="ml-2">{t('settings.sections.modelConfig')}</span>
+          </h2>
+          <div className="space-y-4">
+            {modelConfigItems.map(renderModelConfigGroup)}
+          </div>
+        </div>
+
+        {/* 其余配置区块（配置驱动） */}
+        <div className="space-y-8">
+          {settingsSections.map((section) => (
+            <div key={section.title}>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-foreground-primary mb-4 flex items-center">
+                {section.icon}
+                <span className="ml-2">{section.title}</span>
+              </h2>
+              <div className="space-y-4">
+                {section.fields.map((field) => renderField(field))}
+              </div>
+            </div>
           ))}
         </div>
 
